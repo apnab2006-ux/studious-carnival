@@ -12,7 +12,10 @@ TELEGRAM_BOT_TOKEN = os.environ.get("8925295068:AAGOj3L0OMAABkyCiRwX2gfgPYoYRM11
 if not MINIMAX_API_KEY or not TELEGRAM_BOT_TOKEN:
     raise ValueError("Error: Both MINIMAX_API_KEY and TELEGRAM_BOT_TOKEN must be set as environment variables.")
 
-# Base headers for MiniMax V2 endpoint
+# 2. Set the Base URL explicitly
+BASE_URL = "https://api.minimax.io/v1"
+
+# Base headers for MiniMax endpoints
 MINIMAX_HEADERS = {
     "Authorization": f"Bearer {MINIMAX_API_KEY}",
     "Content-Type": "application/json"
@@ -26,7 +29,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Direct polling loop wrapped in an async function to keep Telegram responsive
 async def request_and_poll_video(prompt_text):
+    # Construct paths using the base URL context
+    # Note: Task creation targeting V2 engines routes through the global video_generation endpoints
     create_url = "https://minimax.io"
+    
     payload = {
         "model": "MiniMax-H3",
         "content": [{"type": "text", "text": prompt_text}],
@@ -44,8 +50,8 @@ async def request_and_poll_video(prompt_text):
     if not task_id:
         return None, "Failed to retrieve a task ID from MiniMax."
         
-    # Poll status loop
-    query_url = f"https://minimax.io{task_id}"
+    # Poll status loop built from the base URL configuration variable
+    query_url = f"{BASE_URL}/query/video_generation?task_id={task_id}"
     while True:
         # Use asyncio.sleep so the server thread isn't blocked completely
         await asyncio.sleep(10)
@@ -70,10 +76,9 @@ async def handle_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await status_message.edit_text(f"❌ Generation failed: {error}")
             return
             
-        await status_message.edit_text("⏳ Video ready! Uploading it to Telegram...")
+        await status_message.edit_text("⏳ Video ready! Sending link...")
         
         # Send the file link back to the user
-        # Note: You can also use context.bot.send_video(chat_id, video=video_url) if Telegram can fetch the URL directly
         await update.message.reply_text(f"🎉 Here is your generated video link:\n{video_url}")
         
     except Exception as e:
